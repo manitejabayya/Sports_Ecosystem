@@ -1,6 +1,6 @@
 import axios, { AxiosError, AxiosRequestConfig, AxiosResponse } from 'axios';
 
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = 'https://sports-ecosystem.onrender.com/api';
 
 // Create axios instance with base URL and default headers
 const api = axios.create({
