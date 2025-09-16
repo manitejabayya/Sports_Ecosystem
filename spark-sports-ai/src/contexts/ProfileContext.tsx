@@ -22,35 +22,43 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
   const { toast } = useToast();
 
   const fetchProfile = useCallback(async () => {
-    if (!isAuthenticated || !user?._id) return;
+    if (!isAuthenticated || !user) {
+      setProfile(null);
+      setLoading(false);
+      return;
+    }
     
     setLoading(true);
     setError(null);
     
     try {
-      const response = await usersAPI.getUserById(user._id);
-      setProfile(response.data);
+      const response = await usersAPI.getMyProfile();
+      const profileData = response.data?.data || response.data;
+      setProfile(profileData);
     } catch (err: any) {
       console.error('Error fetching profile:', err);
       setError(err.response?.data?.message || 'Failed to load profile');
+      // If profile fetch fails, fall back to user data from AuthContext
+      setProfile(user);
     } finally {
       setLoading(false);
     }
-  }, [isAuthenticated, user?._id]);
+  }, [isAuthenticated, user]);
 
   useEffect(() => {
     fetchProfile();
   }, [fetchProfile]);
 
   const updateProfile = async (data: any) => {
-    if (!user?._id) return;
+    if (!user) return;
     
     setLoading(true);
     setError(null);
     
     try {
-      const response = await usersAPI.updateProfile(user._id, data);
-      setProfile(response.data);
+      const response = await usersAPI.updateProfile(data);
+      const updatedProfile = response.data?.data || response.data;
+      setProfile(updatedProfile);
       
       toast({
         title: 'Profile Updated',
@@ -66,14 +74,17 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const uploadProfileImage = async (file: File) => {
-    if (!user?._id) return;
+    if (!user) return;
     
     setLoading(true);
     setError(null);
     
     try {
-      const response = await usersAPI.uploadProfileImage(user._id, file);
-      setProfile(response.data);
+      const formData = new FormData();
+      formData.append('image', file);
+      const response = await usersAPI.uploadProfileImage(formData);
+      const updatedProfile = response.data?.data || response.data;
+      setProfile(updatedProfile);
       
       toast({
         title: 'Profile Image Updated',

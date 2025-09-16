@@ -2,62 +2,83 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar, Clock, MapPin, Plus, Zap, Target, TrendingUp } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useProfile } from "@/contexts/ProfileContext";
+import { useEffect, useState } from "react";
 
 const TrainingLogs = () => {
-  const trainingLogs = [
-    {
-      id: 1,
-      date: "Nov 18, 2024",
-      type: "Sprint Training",
-      duration: "90 minutes",
-      location: "Track Stadium",
-      exercises: [
-        { name: "100m Sprints", sets: "6x", notes: "Personal best: 11.7s" },
-        { name: "Block Starts", sets: "8x", notes: "Good reaction time" },
-        { name: "Cool Down", sets: "1x", notes: "15min recovery" }
-      ],
-      intensity: "High",
-      rating: 9,
-      notes: "Excellent session, felt strong throughout"
-    },
-    {
-      id: 2,
-      date: "Nov 16, 2024",
-      type: "Strength Training",
-      duration: "75 minutes",
-      location: "Gym",
-      exercises: [
-        { name: "Squats", sets: "4x8", notes: "80kg working weight" },
-        { name: "Deadlifts", sets: "4x6", notes: "100kg, good form" },
-        { name: "Plyometrics", sets: "3x10", notes: "Explosive movements" }
-      ],
-      intensity: "Medium",
-      rating: 8,
-      notes: "Good strength session, increased weight"
-    },
-    {
-      id: 3,
-      date: "Nov 14, 2024",
-      type: "Endurance",
-      duration: "60 minutes",
-      location: "Park",
-      exercises: [
-        { name: "5km Run", sets: "1x", notes: "22:30 - steady pace" },
-        { name: "Hill Repeats", sets: "6x", notes: "200m intervals" },
-        { name: "Core Work", sets: "3x", notes: "Plank variations" }
-      ],
-      intensity: "Medium",
-      rating: 7,
-      notes: "Recovery session, focused on endurance"
-    }
-  ];
+  const { user } = useAuth();
+  const { profile } = useProfile();
+  const [trainingLogs, setTrainingLogs] = useState<any[]>([]);
+  const [weeklyStats, setWeeklyStats] = useState({
+    totalSessions: 0,
+    totalHours: 0,
+    avgIntensity: "Low",
+    avgRating: 0
+  });
 
-  const weeklyStats = {
-    totalSessions: 5,
-    totalHours: 7.5,
-    avgIntensity: "Medium-High",
-    avgRating: 8.2
-  };
+  useEffect(() => {
+    // Get training sessions from user data
+    const userSessions = (user as any)?.athleteData?.trainingSessions || profile?.profile?.trainingSessions || [];
+    
+    // Transform training sessions to match component structure
+    const transformedLogs = userSessions.map((session: any, index: number) => ({
+      id: session.id || index + 1,
+      date: session.date ? new Date(session.date).toLocaleDateString() : "Recent",
+      type: session.type || session.workoutType || "Training",
+      duration: session.duration ? `${session.duration} minutes` : "Unknown",
+      location: session.location || "Training Facility",
+      exercises: session.exercises || session.activities || [
+        { name: session.type || "Exercise", sets: "1x", notes: session.notes || "Training completed" }
+      ],
+      intensity: session.intensity || "Medium",
+      rating: session.rating || session.score || 7,
+      notes: session.notes || session.description || "Training session completed"
+    }));
+
+    // If no user sessions, create a default entry
+    if (transformedLogs.length === 0) {
+      const defaultLogs = [
+        {
+          id: 1,
+          date: new Date().toLocaleDateString(),
+          type: "Welcome Session",
+          duration: "0 minutes",
+          location: "Get Started",
+          exercises: [
+            { name: "Profile Setup", sets: "1x", notes: "Complete your profile to track training" }
+          ],
+          intensity: "Low",
+          rating: 0,
+          notes: "Start logging your training sessions to track progress"
+        }
+      ];
+      setTrainingLogs(defaultLogs);
+    } else {
+      setTrainingLogs(transformedLogs);
+    }
+
+    // Calculate weekly stats from user sessions
+    const totalSessions = userSessions.length;
+    const totalMinutes = userSessions.reduce((sum: number, session: any) => sum + (session.duration || 0), 0);
+    const totalHours = Math.round((totalMinutes / 60) * 10) / 10;
+    const avgRating = totalSessions > 0 
+      ? Math.round((userSessions.reduce((sum: number, session: any) => sum + (session.rating || session.score || 0), 0) / totalSessions) * 10) / 10
+      : 0;
+    
+    // Determine average intensity
+    const intensities = userSessions.map((s: any) => s.intensity || 'Medium');
+    const highCount = intensities.filter((i: string) => i === 'High').length;
+    const mediumCount = intensities.filter((i: string) => i === 'Medium').length;
+    const avgIntensity = highCount > mediumCount ? 'High' : mediumCount > 0 ? 'Medium' : 'Low';
+
+    setWeeklyStats({
+      totalSessions,
+      totalHours,
+      avgIntensity,
+      avgRating
+    });
+  }, [user, profile]);
 
   const getIntensityColor = (intensity: string) => {
     switch (intensity) {

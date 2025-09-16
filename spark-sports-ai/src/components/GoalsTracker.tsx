@@ -3,57 +3,91 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Target, Calendar, Trophy, Plus, CheckCircle2 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useProfile } from "@/contexts/ProfileContext";
+import { useEffect, useState } from "react";
 
 const GoalsTracker = () => {
-  const goals = [
-    {
-      id: 1,
-      title: "Improve 100m Sprint Time",
-      target: "Sub 11.5 seconds",
-      current: "11.8 seconds",
-      progress: 85,
-      deadline: "Dec 2024",
-      status: "active",
-      category: "Performance"
-    },
-    {
-      id: 2,
-      title: "Complete 30-Day Consistency Challenge",
-      target: "30 training days",
-      current: "28 days",
-      progress: 93,
-      deadline: "Nov 2024",
-      status: "active",
-      category: "Consistency"
-    },
-    {
-      id: 3,
-      title: "Achieve Regional Competition Qualification",
-      target: "Sub 11.2 seconds",
-      current: "11.8 seconds",
-      progress: 45,
-      deadline: "Mar 2025",
-      status: "active",
-      category: "Competition"
-    },
-    {
-      id: 4,
-      title: "Master Sprint Technique",
-      target: "90+ technique score",
-      current: "92 score",
-      progress: 100,
-      deadline: "Oct 2024",
-      status: "completed",
-      category: "Technique"
-    }
-  ];
+  const { user } = useAuth();
+  const { profile } = useProfile();
+  const [goals, setGoals] = useState<any[]>([]);
+  const [milestones, setMilestones] = useState<any[]>([]);
 
-  const milestones = [
-    { date: "Nov 15", event: "Personal Best in 100m", completed: true },
-    { date: "Nov 20", event: "Complete technique assessment", completed: true },
-    { date: "Nov 25", event: "30-day consistency streak", completed: false },
-    { date: "Dec 01", event: "Mid-season evaluation", completed: false },
-  ];
+  useEffect(() => {
+    // Get goals from user profile data
+    const userGoals = profile?.profile?.goals || (user as any)?.athleteData?.goals || [];
+    const userMilestones = profile?.profile?.milestones || (user as any)?.athleteData?.milestones || [];
+    
+    // Transform goals data to match component structure
+    const transformedGoals = userGoals.map((goal: any, index: number) => ({
+      id: goal.id || index + 1,
+      title: goal.title || goal.shortTerm || goal.longTerm || goal.dream || "Goal",
+      target: goal.target || goal.targetValue || "Not specified",
+      current: goal.current || goal.currentValue || "0",
+      progress: goal.progress || 0,
+      deadline: goal.deadline || goal.targetDate || "TBD",
+      status: goal.status || "active",
+      category: goal.category || "General"
+    }));
+
+    // Transform milestones data
+    const transformedMilestones = userMilestones.map((milestone: any) => ({
+      date: milestone.date || milestone.targetDate || "TBD",
+      event: milestone.event || milestone.title || milestone.description || "Milestone",
+      completed: milestone.completed || milestone.status === 'completed' || false
+    }));
+
+    // If no user goals, show default structure with user's profile goals
+    if (transformedGoals.length === 0 && (profile?.profile?.goals || (user as any)?.profile?.goals)) {
+      const profileGoals = profile?.profile?.goals || (user as any)?.profile?.goals || {};
+      const defaultGoals = [];
+      
+      if (profileGoals.shortTerm) {
+        defaultGoals.push({
+          id: 1,
+          title: "Short-term Goal",
+          target: profileGoals.shortTerm,
+          current: "In Progress",
+          progress: 25,
+          deadline: "Next 6 months",
+          status: "active",
+          category: "Short-term"
+        });
+      }
+      
+      if (profileGoals.longTerm) {
+        defaultGoals.push({
+          id: 2,
+          title: "Long-term Goal", 
+          target: profileGoals.longTerm,
+          current: "Planning",
+          progress: 10,
+          deadline: "1-2 years",
+          status: "active",
+          category: "Long-term"
+        });
+      }
+      
+      if (profileGoals.dream) {
+        defaultGoals.push({
+          id: 3,
+          title: "Dream Goal",
+          target: profileGoals.dream,
+          current: "Vision",
+          progress: 5,
+          deadline: "Future",
+          status: "active", 
+          category: "Dream"
+        });
+      }
+      
+      setGoals(defaultGoals);
+    } else {
+      setGoals(transformedGoals);
+    }
+
+    setMilestones(transformedMilestones);
+  }, [user, profile]);
 
   return (
     <div className="space-y-6">

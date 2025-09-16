@@ -7,13 +7,102 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { User, MapPin, Calendar, Target, Save } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useProfile } from "@/contexts/ProfileContext";
+import { useState, useEffect } from "react";
 
 const ProfileSettings = () => {
   const { user } = useAuth();
-  const fullName = user?.name || "";
-  const [derivedFirstName, ...rest] = fullName.split(" ");
-  const derivedLastName = rest.join(" ");
-  const currentSports = ["Track & Field", "100m Sprint", "200m Sprint"];
+  const { profile, updateProfile, loading } = useProfile();
+  const [formData, setFormData] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    bio: "",
+    city: "",
+    state: "",
+    age: "",
+    experience: "",
+    birthDate: "",
+    level: "",
+    coach: "",
+    club: "",
+    shortTermGoal: "",
+    longTermGoal: "",
+    dreamGoal: "",
+    motivation: ""
+  });
+
+  // Initialize form data from user/profile data
+  useEffect(() => {
+    if (user || profile) {
+      const userData = profile || user;
+      const fullName = userData?.name || "";
+      const [firstName, ...rest] = fullName.split(" ");
+      const lastName = rest.join(" ");
+
+      setFormData({
+        firstName: firstName || "",
+        lastName: lastName || "",
+        email: userData?.email || "",
+        phone: userData?.profile?.phone || "",
+        bio: userData?.profile?.bio || "",
+        city: userData?.profile?.location?.city || "",
+        state: userData?.profile?.location?.state || "",
+        age: userData?.profile?.age?.toString() || "",
+        experience: userData?.profile?.experience?.toString() || "",
+        birthDate: userData?.profile?.dateOfBirth || "",
+        level: userData?.profile?.level || "",
+        coach: userData?.profile?.coach || "",
+        club: userData?.profile?.club || "",
+        shortTermGoal: userData?.profile?.goals?.shortTerm || "",
+        longTermGoal: userData?.profile?.goals?.longTerm || "",
+        dreamGoal: userData?.profile?.goals?.dream || "",
+        motivation: userData?.profile?.motivation || ""
+      });
+    }
+  }, [user, profile]);
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleSave = async () => {
+    try {
+      const profileData = {
+        name: `${formData.firstName} ${formData.lastName}`.trim(),
+        profile: {
+          phone: formData.phone,
+          bio: formData.bio,
+          location: {
+            city: formData.city,
+            state: formData.state
+          },
+          age: parseInt(formData.age) || undefined,
+          experience: parseInt(formData.experience) || undefined,
+          dateOfBirth: formData.birthDate,
+          level: formData.level,
+          coach: formData.coach,
+          club: formData.club,
+          goals: {
+            shortTerm: formData.shortTermGoal,
+            longTerm: formData.longTermGoal,
+            dream: formData.dreamGoal
+          },
+          motivation: formData.motivation
+        }
+      };
+
+      await updateProfile(profileData);
+    } catch (error) {
+      console.error('Failed to update profile:', error);
+    }
+  };
+
+  const currentSports = profile?.profile?.sports || ["Track & Field", "100m Sprint", "200m Sprint"];
   const availableSports = ["400m Sprint", "Long Jump", "High Jump", "Hurdles", "Javelin", "Shot Put"];
 
   return (
@@ -32,22 +121,40 @@ const ProfileSettings = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="firstName">First Name</Label>
-              <Input id="firstName" defaultValue={derivedFirstName} />
+              <Input 
+                id="firstName" 
+                value={formData.firstName}
+                onChange={(e) => handleInputChange('firstName', e.target.value)}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="lastName">Last Name</Label>
-              <Input id="lastName" defaultValue={derivedLastName} />
+              <Input 
+                id="lastName" 
+                value={formData.lastName}
+                onChange={(e) => handleInputChange('lastName', e.target.value)}
+              />
             </div>
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="email">Email Address</Label>
-            <Input id="email" type="email" defaultValue={user?.email || ""} />
+            <Input 
+              id="email" 
+              type="email" 
+              value={formData.email}
+              onChange={(e) => handleInputChange('email', e.target.value)}
+            />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="phone">Phone Number</Label>
-            <Input id="phone" type="tel" defaultValue="+91 98765 43210" />
+            <Input 
+              id="phone" 
+              type="tel" 
+              value={formData.phone}
+              onChange={(e) => handleInputChange('phone', e.target.value)}
+            />
           </div>
 
           <div className="space-y-2">
@@ -55,7 +162,8 @@ const ProfileSettings = () => {
             <Textarea 
               id="bio" 
               placeholder="Tell us about yourself..."
-              defaultValue="Passionate sprint athlete from Delhi, working towards qualifying for national competitions. Love the thrill of speed and always pushing my limits."
+              value={formData.bio}
+              onChange={(e) => handleInputChange('bio', e.target.value)}
               rows={3}
             />
           </div>
@@ -76,13 +184,20 @@ const ProfileSettings = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="city">City</Label>
-              <Input id="city" defaultValue="Delhi" />
+              <Input 
+                id="city" 
+                value={formData.city}
+                onChange={(e) => handleInputChange('city', e.target.value)}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="state">State</Label>
-              <Select defaultValue="delhi">
+              <Select 
+                value={formData.state}
+                onValueChange={(value) => handleInputChange('state', value)}
+              >
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Select state" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="delhi">Delhi</SelectItem>
@@ -98,17 +213,32 @@ const ProfileSettings = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="age">Age</Label>
-              <Input id="age" type="number" defaultValue="22" />
+              <Input 
+                id="age" 
+                type="number" 
+                value={formData.age}
+                onChange={(e) => handleInputChange('age', e.target.value)}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="experience">Years of Experience</Label>
-              <Input id="experience" type="number" defaultValue="5" />
+              <Input 
+                id="experience" 
+                type="number" 
+                value={formData.experience}
+                onChange={(e) => handleInputChange('experience', e.target.value)}
+              />
             </div>
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="birthDate">Date of Birth</Label>
-            <Input id="birthDate" type="date" defaultValue="2002-03-15" />
+            <Input 
+              id="birthDate" 
+              type="date" 
+              value={formData.birthDate}
+              onChange={(e) => handleInputChange('birthDate', e.target.value)}
+            />
           </div>
         </CardContent>
       </Card>
@@ -154,9 +284,12 @@ const ProfileSettings = () => {
 
           <div className="space-y-2">
             <Label htmlFor="level">Current Level</Label>
-            <Select defaultValue="intermediate">
+            <Select 
+              value={formData.level}
+              onValueChange={(value) => handleInputChange('level', value)}
+            >
               <SelectTrigger>
-                <SelectValue />
+                <SelectValue placeholder="Select level" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="beginner">Beginner (0-2 years)</SelectItem>
@@ -169,12 +302,20 @@ const ProfileSettings = () => {
 
           <div className="space-y-2">
             <Label htmlFor="coach">Current Coach</Label>
-            <Input id="coach" defaultValue="Coach Rajesh Kumar" />
+            <Input 
+              id="coach" 
+              value={formData.coach}
+              onChange={(e) => handleInputChange('coach', e.target.value)}
+            />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="club">Training Club/Academy</Label>
-            <Input id="club" defaultValue="Delhi Athletics Academy" />
+            <Input 
+              id="club" 
+              value={formData.club}
+              onChange={(e) => handleInputChange('club', e.target.value)}
+            />
           </div>
         </CardContent>
       </Card>
@@ -192,17 +333,29 @@ const ProfileSettings = () => {
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="shortTermGoal">Short-term Goal (Next 6 months)</Label>
-            <Input id="shortTermGoal" defaultValue="Break 11.5 seconds in 100m sprint" />
+            <Input 
+              id="shortTermGoal" 
+              value={formData.shortTermGoal}
+              onChange={(e) => handleInputChange('shortTermGoal', e.target.value)}
+            />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="longTermGoal">Long-term Goal (1-2 years)</Label>
-            <Input id="longTermGoal" defaultValue="Qualify for national championships" />
+            <Input 
+              id="longTermGoal" 
+              value={formData.longTermGoal}
+              onChange={(e) => handleInputChange('longTermGoal', e.target.value)}
+            />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="dreamGoal">Dream Goal</Label>
-            <Input id="dreamGoal" defaultValue="Represent India in international competitions" />
+            <Input 
+              id="dreamGoal" 
+              value={formData.dreamGoal}
+              onChange={(e) => handleInputChange('dreamGoal', e.target.value)}
+            />
           </div>
 
           <div className="space-y-2">
@@ -210,7 +363,8 @@ const ProfileSettings = () => {
             <Textarea 
               id="motivation" 
               placeholder="Share what drives you to excel..."
-              defaultValue="I want to inspire young girls from small towns that they can achieve anything with dedication and hard work."
+              value={formData.motivation}
+              onChange={(e) => handleInputChange('motivation', e.target.value)}
               rows={3}
             />
           </div>
@@ -219,13 +373,17 @@ const ProfileSettings = () => {
 
       <div className="flex justify-end space-x-4">
         <Button variant="outline">Cancel</Button>
-        <Button className="shadow-athlete">
+        <Button 
+          className="shadow-athlete" 
+          onClick={handleSave}
+          disabled={loading}
+        >
           <Save className="mr-2 h-4 w-4" />
-          Save Changes
+          {loading ? 'Saving...' : 'Save Changes'}
         </Button>
       </div>
-    </div>
-  );
+</div>
+);
 };
 
 export default ProfileSettings;

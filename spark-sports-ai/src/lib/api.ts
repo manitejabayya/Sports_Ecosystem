@@ -7,9 +7,28 @@ const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
+    'Accept': 'application/json',
   },
   withCredentials: true,
+  timeout: 10000, // 10 seconds timeout
 });
+
+// Function to set the auth token
+export const setAuthToken = (token: string | null) => {
+  if (token) {
+    api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    localStorage.setItem('token', token);
+  } else {
+    delete api.defaults.headers.common['Authorization'];
+    localStorage.removeItem('token');
+  }
+};
+
+// Initialize auth token from localStorage if it exists
+const token = localStorage.getItem('token');
+if (token) {
+  setAuthToken(token);
+}
 
 // Flag to prevent multiple token refresh requests
 let isRefreshing = false;
@@ -30,9 +49,20 @@ const processQueue = (error: any, token: string | null = null) => {
 api.interceptors.request.use(
   async (config) => {
     const token = localStorage.getItem('token');
+    if (!config.headers) {
+      config.headers = {} as any;
+    }
     if (token) {
+      // Set the Authorization header
       config.headers.Authorization = `Bearer ${token}`;
     }
+    // Debug log outgoing request
+    try {
+      const url = (config.baseURL || '') + (config.url || '');
+      const hasAuth = Boolean((config.headers as any).Authorization);
+      const authPreview = hasAuth ? String((config.headers as any).Authorization).slice(0, 20) + '...' : 'none';
+      console.log('API Request:', { method: config.method, url, hasAuth, authPreview });
+    } catch {}
     return config;
   },
   (error) => {
@@ -42,7 +72,14 @@ api.interceptors.request.use(
 
 // Response interceptor to handle common errors
 api.interceptors.response.use(
-  (response: AxiosResponse) => response,
+  (response: AxiosResponse) => {
+    console.log('API Response:', {
+      url: response.config.url,
+      status: response.status,
+      data: response.data
+    });
+    return response;
+  },
   async (error: AxiosError) => {
     const originalRequest = error.config as any;
     
@@ -102,8 +139,19 @@ api.interceptors.response.use(
 
 // Auth API
 export const authAPI = {
-  login: (email: string, password: string) => 
-    api.post('/auth/login', { email, password }),
+  login: async (email: string, password: string) => {
+    try {
+      const response = await api.post('/auth/login', { email, password });
+      const { token, data } = response.data;
+      if (token) {
+        setAuthToken(token);
+      }
+      return { ...response, data: { ...response.data, user: data || response.data.user } };
+    } catch (error: any) {
+      console.error('Login error:', error);
+      throw error;
+    }
+  },
   
   register: (userData: {
     name: string;
@@ -113,13 +161,27 @@ export const authAPI = {
   }) => api.post('/auth/register', userData),
 
   // Backend exposes current user at /api/auth/me
-  getProfile: () => api.get('/auth/me'),
+  getProfile: async (config: AxiosRequestConfig = {}) => {
+    try {
+      const response = await api.get('/auth/me', config);
+      return response;
+    } catch (error: any) {
+      if (error.response?.status === 401) {
+        // Clear auth data on 401
+        setAuthToken(null);
+      }
+      throw error;
+    }
+  },
 };
 
 // Users API
 export const usersAPI = {
   // Note: backend doesn't expose generic /users list in current routes; keep for future
   getUsers: (params = {}) => api.get('/users', { params }),
+
+  // Get user by ID
+  getUserById: (userId: string) => api.get(`/users/${userId}`),
 
   // Current logged-in user's profile
   getMyProfile: () => api.get('/users/profile'),
@@ -128,16 +190,21 @@ export const usersAPI = {
   updateProfile: (userData: any) => 
     api.put('/users/profile', userData),
 
-  // Placeholder: backend does not currently have this route; keep signature for later integration
-  uploadProfileImage: (imageFile: File) => {
-    const formData = new FormData();
-    formData.append('image', imageFile);
-    return api.post(`/users/profile/upload`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
-  },
+  // Upload profile image
+  uploadProfileImage: (formData: FormData) => 
+    api.put('/users/profile/image', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    }),
+
+  // Performance and Analytics
+  getPerformanceAnalytics: () => api.get('/users/analytics'),
+  
+  // Training Sessions
+  addTrainingSession: (sessionData: any) => api.post('/users/training-session', sessionData),
+  
+  // Goals Management
+  addGoal: (goalData: any) => api.post('/users/goals', goalData),
+  updateGoal: (goalId: string, goalData: any) => api.put(`/users/goals/${goalId}`, goalData),
 
   // Dashboards
   getAthleteDashboard: () => api.get('/users/athlete-dashboard'),

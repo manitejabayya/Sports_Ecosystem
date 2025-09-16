@@ -61,10 +61,8 @@ const theme = createTheme({
   },
 });
 
-// Create a wrapper component that ensures only supported props are passed to MUI
-const ThemeProvider = ({ children }: any) => {
-  return <MuiThemeProvider theme={theme}>{children}</MuiThemeProvider>;
-};
+// Use MUI's ThemeProvider directly
+const ThemeProvider = MuiThemeProvider;
 
 // Auth Check Component - Handles initial auth state check
 const AuthCheck = ({ children }: { children: React.ReactNode }) => {
@@ -125,6 +123,18 @@ const ProtectedRoute = ({ children, requiredRole }: { children: React.ReactNode,
   return <>{children}</>;
 };
 
+// Dashboard Redirect Component - Redirects to role-specific dashboard
+const DashboardRedirect = () => {
+  const { user } = useAuth();
+  
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  const dashboardPath = user.role === 'athlete' ? '/athlete-dashboard' : '/coach-dashboard';
+  return <Navigate to={dashboardPath} replace />;
+};
+
 // Public Route Component (for login/register when already authenticated)
 const PublicRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, loading } = useAuth();
@@ -157,6 +167,13 @@ const AppRoutes = () => {
         <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
         <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
         <Route path="/" element={<Index />} />
+
+        {/* Dashboard Route - Redirects to role-specific dashboard */}
+        <Route path="/dashboard" element={
+          <ProtectedRoute>
+            <DashboardRedirect />
+          </ProtectedRoute>
+        } />
 
         {/* Protected Routes */}
         <Route path="/athlete-dashboard" element={

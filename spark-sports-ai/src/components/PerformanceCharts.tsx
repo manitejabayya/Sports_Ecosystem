@@ -1,21 +1,54 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, TrendingDown, Minus, Target } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useEffect, useState } from "react";
+import { usersAPI } from "@/lib/api";
 
 const PerformanceCharts = () => {
-  const performanceData = [
-    { metric: "Sprint Speed", current: 92, benchmark: 85, trend: "up", change: "+7%" },
-    { metric: "Endurance", current: 78, benchmark: 80, trend: "down", change: "-2%" },
-    { metric: "Agility", current: 88, benchmark: 85, trend: "up", change: "+3%" },
-    { metric: "Strength", current: 85, benchmark: 85, trend: "stable", change: "0%" },
+  const { user } = useAuth();
+  const [analyticsData, setAnalyticsData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchAnalytics = async () => {
+      if (!user || user.role !== 'athlete') {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        setError(null);
+        const response = await usersAPI.getPerformanceAnalytics();
+        const data = response.data?.data || response.data;
+        setAnalyticsData(data);
+      } catch (err: any) {
+        setError(err?.response?.data?.message || 'Failed to load performance analytics');
+        console.error('Failed to fetch performance analytics:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAnalytics();
+  }, [user]);
+
+  // Default/fallback data when loading or no data available
+  const performanceData = analyticsData?.performanceMetrics || [
+    { metric: "Sprint Speed", current: 0, benchmark: 85, trend: "stable", change: "0%" },
+    { metric: "Endurance", current: 0, benchmark: 80, trend: "stable", change: "0%" },
+    { metric: "Agility", current: 0, benchmark: 85, trend: "stable", change: "0%" },
+    { metric: "Strength", current: 0, benchmark: 85, trend: "stable", change: "0%" },
   ];
 
-  const weeklyProgress = [
-    { week: "Week 1", score: 75 },
-    { week: "Week 2", score: 78 },
-    { week: "Week 3", score: 82 },
-    { week: "Week 4", score: 88 },
-    { week: "Week 5", score: 92 },
+  const weeklyProgress = analyticsData?.chartData || [
+    { week: "Week 1", score: 0 },
+    { week: "Week 2", score: 0 },
+    { week: "Week 3", score: 0 },
+    { week: "Week 4", score: 0 },
+    { week: "Week 5", score: 0 },
   ];
 
   return (

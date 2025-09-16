@@ -171,8 +171,11 @@ UserSchema.pre('save', async function(next) {
 
 // Sign JWT and return
 UserSchema.methods.getSignedJwtToken = function() {
+  // Interpret JWT_COOKIE_EXPIRE as days if it's a number (e.g., 30 => '30d')
+  const rawExpire = process.env.JWT_COOKIE_EXPIRE;
+  const expiresIn = /\d+$/.test(String(rawExpire)) ? `${rawExpire}d` : rawExpire;
   return jwt.sign({ id: this._id }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_COOKIE_EXPIRE
+    expiresIn
   });
 };
 

@@ -1,80 +1,92 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Award, Star, Trophy, Flame, Target, Zap, Shield, Crown } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useProfile } from "@/contexts/ProfileContext";
+import { useEffect, useState } from "react";
 
 const AchievementsBadges = () => {
-  const badges = [
-    {
-      id: 1,
-      name: "Speed Demon",
-      description: "Achieved sub-12 second 100m sprint",
-      icon: Zap,
-      earned: true,
-      earnedDate: "Nov 15, 2024",
-      rarity: "gold",
-      category: "Performance"
-    },
-    {
-      id: 2,
-      name: "Consistency Champion",
-      description: "30 consecutive training days",
-      icon: Flame,
-      earned: true,
-      earnedDate: "Nov 10, 2024",
-      rarity: "silver",
-      category: "Dedication"
-    },
-    {
-      id: 3,
-      name: "Technique Master",
-      description: "Scored 90+ in technique assessment",
-      icon: Star,
-      earned: true,
-      earnedDate: "Oct 28, 2024",
-      rarity: "gold",
-      category: "Skill"
-    },
-    {
-      id: 4,
-      name: "Rising Star",
-      description: "Top 10% improvement in 3 months",
-      icon: Crown,
-      earned: true,
-      earnedDate: "Oct 15, 2024",
-      rarity: "platinum",
-      category: "Growth"
-    },
-    {
-      id: 5,
-      name: "Goal Crusher",
-      description: "Complete 5 athletic goals",
-      icon: Target,
-      earned: false,
-      progress: 80,
-      rarity: "gold",
-      category: "Achievement"
-    },
-    {
-      id: 6,
-      name: "Elite Performer",
-      description: "Achieve 95+ overall score",
-      icon: Trophy,
-      earned: false,
-      progress: 65,
-      rarity: "platinum",
-      category: "Performance"
-    },
-    {
-      id: 7,
-      name: "Guardian",
-      description: "Zero injuries for 6 months",
-      icon: Shield,
-      earned: false,
-      progress: 40,
-      rarity: "silver",
-      category: "Health"
+  const { user } = useAuth();
+  const { profile } = useProfile();
+  const [badges, setBadges] = useState<any[]>([]);
+
+  useEffect(() => {
+    // Get achievements from user profile data
+    const userAchievements = profile?.profile?.achievements || (user as any)?.athleteData?.achievements || [];
+    const userBadges = profile?.profile?.badges || (user as any)?.athleteData?.badges || [];
+    
+    // Icon mapping
+    const iconMap: { [key: string]: any } = {
+      'speed': Zap,
+      'consistency': Flame,
+      'technique': Star,
+      'growth': Crown,
+      'goal': Target,
+      'performance': Trophy,
+      'health': Shield,
+      'award': Award
+    };
+
+    // Transform user achievements to badge format
+    const transformedBadges = userBadges.map((badge: any, index: number) => ({
+      id: badge.id || index + 1,
+      name: badge.name || badge.title || "Achievement",
+      description: badge.description || "Achievement earned",
+      icon: iconMap[badge.iconType] || iconMap[badge.category?.toLowerCase()] || Award,
+      earned: badge.earned || badge.status === 'earned' || false,
+      earnedDate: badge.earnedDate || badge.dateEarned || "Recently",
+      rarity: badge.rarity || "silver",
+      category: badge.category || "General",
+      progress: badge.progress || (badge.earned ? 100 : 0)
+    }));
+
+    // If no user badges, create default badges based on user data
+    if (transformedBadges.length === 0) {
+      const defaultBadges = [
+        {
+          id: 1,
+          name: "Getting Started",
+          description: "Welcome to your athletic journey",
+          icon: Star,
+          earned: true,
+          earnedDate: "Account Created",
+          rarity: "silver",
+          category: "Welcome"
+        }
+      ];
+
+      // Add badges based on user profile data
+      if (profile?.profile?.goals?.shortTerm || profile?.profile?.goals?.longTerm) {
+        defaultBadges.push({
+          id: 2,
+          name: "Goal Setter",
+          description: "Set your first athletic goal",
+          icon: Target,
+          earned: true,
+          earnedDate: "Profile Updated",
+          rarity: "silver",
+          category: "Planning"
+        });
+      }
+
+      if (profile?.profile?.experience && parseInt(profile.profile.experience) > 2) {
+        defaultBadges.push({
+          id: 3,
+          name: "Experienced Athlete",
+          description: `${profile.profile.experience}+ years of experience`,
+          icon: Crown,
+          earned: true,
+          earnedDate: "Profile Verified",
+          rarity: "gold",
+          category: "Experience"
+        });
+      }
+
+      setBadges(defaultBadges);
+    } else {
+      setBadges(transformedBadges);
     }
-  ];
+  }, [user, profile]);
 
   const getRarityColor = (rarity: string) => {
     switch (rarity) {
