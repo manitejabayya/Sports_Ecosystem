@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { authAPI } from '@/lib/api';
+import { useToast } from '@/components/ui/use-toast';
 
 interface User {
   _id: string;
@@ -16,12 +17,13 @@ type AuthContextType = {
   loading: boolean;
   error: string | null;
   login: (email: string, password: string) => Promise<void>;
-  register: (userData: {
-    name: string;
-    email: string;
-    password: string;
-    role: 'athlete' | 'coach' | 'scout';
-  }) => Promise<void>;
+  register: (
+    name: string,
+    email: string,
+    password: string,
+    role: 'athlete' | 'coach' | 'scout',
+    profile?: any
+  ) => Promise<void>;
   logout: () => void;
   loadUser: () => Promise<void>;
 };
@@ -34,6 +36,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
+  const location = useLocation();
+  const { toast } = useToast();
 
   // Load user from token on initial load
   useEffect(() => {
@@ -77,11 +81,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(user);
       setIsAuthenticated(true);
       
-      // Redirect based on user role
-      const redirectPath = user.role === 'athlete' ? '/athlete-dashboard' : '/coach-dashboard';
-      navigate(redirectPath);
+      // Show success message
+      toast({
+        title: 'Welcome back!',
+        description: 'You have successfully logged in.',
+      });
+      
+      // Redirect to the intended URL or based on user role
+      const from = location.state?.from?.pathname || 
+                  (user.role === 'athlete' ? '/athlete-dashboard' : '/coach-dashboard');
+      navigate(from, { replace: true });
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Login failed. Please try again.');
+      const errorMessage = err.response?.data?.message || 'Login failed. Please check your credentials.';
+      setError(errorMessage);
+      
+      toast({
+        variant: 'destructive',
+        title: 'Login failed',
+        description: errorMessage,
+      });
+      
       throw err;
     } finally {
       setLoading(false);
@@ -89,15 +108,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   // Register user
-  const register = async (userData: {
-    name: string;
-    email: string;
-    password: string;
-    role: 'athlete' | 'coach' | 'scout';
-  }) => {
+  const register = async (
+    name: string,
+    email: string,
+    password: string,
+    role: 'athlete' | 'coach' | 'scout',
+    profile: any = {}
+  ) => {
     try {
       setLoading(true);
       setError(null);
+      
+      // Prepare user data for registration
+      const userData = {
+        name,
+        email,
+        password,
+        role,
+        profile
+      };
       const response = await authAPI.register(userData);
       const { token, user } = response.data;
       
@@ -105,11 +134,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(user);
       setIsAuthenticated(true);
       
+      // Show success message
+      toast({
+        title: 'Registration successful!',
+        description: 'Your account has been created successfully.',
+      });
+      
       // Redirect based on user role
       const redirectPath = user.role === 'athlete' ? '/athlete-dashboard' : '/coach-dashboard';
-      navigate(redirectPath);
+      navigate(redirectPath, { replace: true });
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Registration failed. Please try again.');
+      const errorMessage = err.response?.data?.message || 'Registration failed. Please try again.';
+      setError(errorMessage);
+      
+      toast({
+        variant: 'destructive',
+        title: 'Registration failed',
+        description: errorMessage,
+      });
+      
       throw err;
     } finally {
       setLoading(false);
@@ -121,7 +164,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     localStorage.removeItem('token');
     setUser(null);
     setIsAuthenticated(false);
-    navigate('/login');
+    
+    toast({
+      title: 'Logged out',
+      description: 'You have been successfully logged out.',
+    });
+    
+    navigate('/login', { replace: true });
   };
 
   return (

@@ -142,49 +142,59 @@ const Register = () => {
     }
   };
 
-  const validateStep = (step: number) => {
+  const validateStep = (step: number): RegisterFormErrors => {
     const newErrors: RegisterFormErrors = {};
-
+    
     if (step === 1) {
-      if (!formData.firstName) newErrors.firstName = "First name is required";
-      if (!formData.lastName) newErrors.lastName = "Last name is required";
-      if (!formData.email) newErrors.email = "Email is required";
-      if (!formData.phone) newErrors.phone = "Phone number is required";
-      if (!formData.role) newErrors.role = "Please select a role";
+      if (!formData.firstName.trim()) newErrors.firstName = 'First name is required';
+      if (!formData.lastName.trim()) newErrors.lastName = 'Last name is required';
+      if (!formData.email.trim()) {
+        newErrors.email = 'Email is required';
+      } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+        newErrors.email = 'Email is invalid';
+      }
+      if (!formData.phone.trim()) {
+        newErrors.phone = 'Phone number is required';
+      } else if (!/^\d{10}$/.test(formData.phone)) {
+        newErrors.phone = 'Phone number must be 10 digits';
+      }
+      if (!formData.role) newErrors.role = 'Please select a role';
       if (formData.password.length < 6) newErrors.password = "Password must be at least 6 characters";
       if (formData.password !== formData.confirmPassword) {
         newErrors.confirmPassword = "Passwords do not match";
       }
     }
-
+    
     if (step === 2) {
-      if (!formData.dateOfBirth) newErrors.dateOfBirth = "Date of birth is required";
-      if (!formData.gender) newErrors.gender = "Gender is required";
-      if (!formData.state) newErrors.state = "State is required";
-      if (!formData.location) newErrors.location = "Location is required";
+      if (!formData.dateOfBirth) newErrors.dateOfBirth = 'Date of birth is required';
+      if (!formData.gender) newErrors.gender = 'Gender is required';
+      if (!formData.location) newErrors.location = 'Location is required';
+      if (!formData.state) newErrors.state = 'State is required';
+      if (!formData.district) newErrors.district = 'District is required';
     }
-
+    
     if (step === 3) {
-      if (formData.role === "athlete" && !formData.sport) {
-        newErrors.sport = "Sport is required for athletes";
+      if (formData.role === 'athlete' && !formData.sport) {
+        newErrors.sport = 'Sport is required for athletes';
       }
-      if (formData.role === "coach" && !formData.experience) {
-        newErrors.experience = "Experience is required for coaches";
+      if (formData.role === 'coach' && !formData.experience) {
+        newErrors.experience = 'Experience is required for coaches';
       }
       if (!formData.termsAccepted) {
-        newErrors.termsAccepted = "You must accept the terms and conditions";
+        newErrors.termsAccepted = 'You must accept the terms and conditions';
       }
       if (!formData.privacyAccepted) {
-        newErrors.privacyAccepted = "You must accept the privacy policy";
+        newErrors.privacyAccepted = 'You must accept the privacy policy';
       }
     }
 
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    return newErrors;
   };
 
   const handleNext = () => {
-    if (validateStep(currentStep)) {
+    const validationErrors = validateStep(currentStep);
+    if (Object.keys(validationErrors).length === 0) {
       setCurrentStep(prev => prev + 1);
     }
   };
@@ -193,47 +203,85 @@ const Register = () => {
     setCurrentStep(prev => prev - 1);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!validateStep(3)) return;
+  const handleSubmit = async () => {
+    // Validate all steps before submission
+    const validationErrors = validateStep(currentStep);
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
+      return;
+    }
+
+    if (currentStep < 4) {
+      setCurrentStep(prev => prev + 1);
+      return;
+    }
+
+    // Final validation before submission
+    if (formData.password !== formData.confirmPassword) {
+      setErrors(prev => ({
+        ...prev,
+        confirmPassword: "Passwords do not match"
+      }));
+      return;
+    }
+
+    if (!formData.termsAccepted || !formData.privacyAccepted) {
+      toast({
+        variant: "destructive",
+        title: "Accept terms and conditions",
+        description: "You must accept the terms and conditions and privacy policy to continue.",
+      });
+      return;
+    }
 
     setIsLoading(true);
 
     try {
-      // Prepare user data for registration
+      // Prepare the data for registration
       const userData = {
-        name: `${formData.firstName} ${formData.lastName}`,
+        name: `${formData.firstName} ${formData.lastName}`.trim(),
         email: formData.email,
-        password: formData.password,
-        role: formData.role as 'athlete' | 'coach' | 'scout',
         phone: formData.phone,
-        dateOfBirth: formData.dateOfBirth,
-        gender: formData.gender,
-        location: formData.location,
-        state: formData.state,
-        district: formData.district,
-        sport: formData.sport,
-        specialization: formData.specialization,
-        experience: formData.experience,
-        bio: formData.bio,
+        password: formData.password,
+        role: formData.role,
+        profile: {
+          dateOfBirth: formData.dateOfBirth,
+          gender: formData.gender,
+          location: formData.location,
+          state: formData.state,
+          district: formData.district,
+          sport: formData.sport,
+          specialization: formData.specialization,
+          experience: formData.experience,
+          bio: formData.bio,
+        },
       };
 
-      // Use the AuthContext register function
-      await register(userData);
+      // Call the register function from AuthContext with the correct number of arguments
+      await register(
+        userData.name,
+        userData.email,
+        userData.password,
+        userData.role as 'athlete' | 'coach' | 'scout',
+        userData.profile
+      );
 
-      // Show success message
       toast({
-        title: "Registration Successful!",
-        description: `Welcome to Sports Talent Hub, ${formData.firstName}!`,
+        title: "Registration successful!",
+        description: "Your account has been created successfully.",
       });
 
-    } catch (err: any) {
-      console.error("Registration error:", err);
+      // Redirect to dashboard based on role
+      const redirectPath = formData.role === 'athlete' ? '/athlete-dashboard' : '/coach-dashboard';
+      navigate(redirectPath, { replace: true });
+    } catch (error: any) {
+      console.error("Registration error:", error);
+      const errorMessage = error.response?.data?.message || "An error occurred during registration. Please try again.";
+      
       toast({
-        title: "Registration Failed",
-        description: err.message || "Registration failed. Please try again.",
         variant: "destructive",
+        title: "Registration failed",
+        description: errorMessage,
       });
     } finally {
       setIsLoading(false);

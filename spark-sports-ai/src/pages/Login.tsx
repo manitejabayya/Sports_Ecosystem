@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,13 +18,15 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
-  const [isOffline] = useState(false); // You can implement offline detection logic
+  const [isOffline] = useState(false);
   const { login } = useAuth();
   
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
+  const from = location.state?.from?.pathname || "/";
 
-  const handleInputChange = (e) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
@@ -35,21 +37,36 @@ const Login = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Basic validation
+    if (!formData.email || !formData.password) {
+      setError("Please fill in all required fields");
+      return;
+    }
+
     setIsLoading(true);
     setError("");
 
     try {
       await login(formData.email, formData.password);
-      // The AuthContext will handle the navigation after successful login
       
-      // Show success message
       toast({
         title: "Login successful",
-        description: "Redirecting to your dashboard...",
+        description: "Welcome back to Sports Talent Hub!",
       });
+      
+      // Navigate to the intended destination or dashboard
+      navigate(from, { replace: true });
     } catch (error: any) {
       console.error("Login error:", error);
-      setError(error.message || "Failed to log in. Please check your credentials.");
+      const errorMessage = error.response?.data?.message || "Failed to log in. Please check your credentials.";
+      setError(errorMessage);
+      
+      toast({
+        variant: "destructive",
+        title: "Login failed",
+        description: errorMessage,
+      });
     } finally {
       setIsLoading(false);
     }
