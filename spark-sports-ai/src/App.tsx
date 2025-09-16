@@ -79,14 +79,15 @@ const App = () => (
                 <Register />
               </PublicRoute>
             } />
+           
             
             {/* Protected Routes */}
-            <Route path="/athlete-dashboard" element={
+             <Route path="/athlete-dashboard" element={
               <ProtectedRoute requiredRole="athlete">
                 <AthleteDashboard />
               </ProtectedRoute>
             } />
-            <Route path="/coach-dashboard" element={
+            <Route path="/coach-dashboard" element={ 
               <ProtectedRoute requiredRole="coach">
                 <CoachDashboard />
               </ProtectedRoute>
