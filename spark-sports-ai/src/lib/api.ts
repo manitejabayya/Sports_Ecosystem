@@ -50,19 +50,27 @@ export const authAPI = {
     role: 'athlete' | 'coach' | 'scout';
   }) => api.post('/auth/register', userData),
 
-  getProfile: () => api.get('/users/me'),
+  // Backend exposes current user at /api/auth/me
+  getProfile: () => api.get('/auth/me'),
 };
 
 // Users API
 export const usersAPI = {
+  // Note: backend doesn't expose generic /users list in current routes; keep for future
   getUsers: (params = {}) => api.get('/users', { params }),
-  getUserById: (id: string) => api.get(`/users/${id}`),
-  updateProfile: (id: string, userData: any) => 
-    api.put(`/users/${id}`, userData),
-  uploadProfileImage: (id: string, imageFile: File) => {
+
+  // Current logged-in user's profile
+  getMyProfile: () => api.get('/users/profile'),
+
+  // Update current user's profile
+  updateProfile: (userData: any) => 
+    api.put('/users/profile', userData),
+
+  // Placeholder: backend does not currently have this route; keep signature for later integration
+  uploadProfileImage: (imageFile: File) => {
     const formData = new FormData();
     formData.append('image', imageFile);
-    return api.post(`/users/${id}/upload`, formData, {
+    return api.post(`/users/profile/upload`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },

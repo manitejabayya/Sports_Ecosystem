@@ -7,8 +7,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Users, BarChart3, AlertTriangle, Calendar, TrendingUp, Shield } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 const CoachDashboard = () => {
+  const { user } = useAuth();
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
@@ -16,7 +18,7 @@ const CoachDashboard = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold bg-gradient-hero bg-clip-text text-transparent mb-2">
-            Coach Dashboard
+            {user?.name ? `Welcome, ${user.name}` : "Coach Dashboard"}
           </h1>
           <p className="text-lg text-muted-foreground">
             Manage your athletes, analyze performance, and optimize training programs.

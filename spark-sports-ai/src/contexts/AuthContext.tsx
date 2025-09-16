@@ -61,7 +61,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const loadUser = useCallback(async () => {
     try {
       const response = await authAPI.getProfile();
-      setUser(response.data);
+      // Backend returns { success, data: user }
+      const apiUser = (response as any).data?.data || (response as any).data;
+      setUser(apiUser);
       setIsAuthenticated(true);
     } catch (err) {
       console.error('Error loading user', err);
@@ -75,10 +77,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setLoading(true);
       setError(null);
       const response = await authAPI.login(email, password);
-      const { token, user } = response.data;
+      // Backend returns { success, token, data: { ...user } }
+      const token = (response as any).data?.token;
+      const apiUser = (response as any).data?.data;
       
-      localStorage.setItem('token', token);
-      setUser(user);
+      if (token) {
+        localStorage.setItem('token', token);
+      }
+      setUser(apiUser);
       setIsAuthenticated(true);
       
       // Show success message
@@ -89,7 +95,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       // Redirect to the intended URL or based on user role
       const from = location.state?.from?.pathname || 
-                  (user.role === 'athlete' ? '/athlete-dashboard' : '/coach-dashboard');
+                  (apiUser?.role === 'athlete' ? '/athlete-dashboard' : '/coach-dashboard');
       navigate(from, { replace: true });
     } catch (err: any) {
       const errorMessage = err.response?.data?.message || 'Login failed. Please check your credentials.';
@@ -129,10 +135,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       };
       
       const response = await authAPI.register(registrationData);
-      const { token, user } = response.data;
+      // Backend returns { success, token, data: { ...user } }
+      const token = (response as any).data?.token;
+      const apiUser = (response as any).data?.data;
       
-      localStorage.setItem('token', token);
-      setUser(user);
+      if (token) {
+        localStorage.setItem('token', token);
+      }
+      setUser(apiUser);
       setIsAuthenticated(true);
       
       toast({
@@ -141,7 +151,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       });
       
       // Redirect based on role
-      const redirectPath = role === 'athlete' ? '/athlete-dashboard' : '/coach-dashboard';
+      const redirectPath = (apiUser?.role || role) === 'athlete' ? '/athlete-dashboard' : '/coach-dashboard';
       navigate(redirectPath, { replace: true });
     } catch (err: any) {
       console.error('Registration error:', err);

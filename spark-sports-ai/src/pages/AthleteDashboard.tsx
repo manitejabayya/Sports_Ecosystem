@@ -8,8 +8,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Target, TrendingUp, Award, Calendar, Activity, Zap } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 const AthleteDashboard = () => {
+  const { user } = useAuth();
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
@@ -17,7 +19,7 @@ const AthleteDashboard = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold bg-gradient-hero bg-clip-text text-transparent mb-2">
-            My Performance Dashboard
+            {user?.name ? `Welcome, ${user.name}` : "My Performance Dashboard"}
           </h1>
           <p className="text-lg text-muted-foreground">
             Track your progress, celebrate achievements, and reach new heights.

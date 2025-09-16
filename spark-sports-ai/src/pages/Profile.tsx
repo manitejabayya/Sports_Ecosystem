@@ -7,8 +7,18 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { User, Shield, Settings, Bell, Lock, Edit } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Profile = () => {
+  const { user } = useAuth();
+  const displayName = user?.name || "User";
+  const roleLabel = user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : "Member";
+  const initials = displayName
+    .split(" ")
+    .map((n) => n[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
@@ -19,21 +29,23 @@ const Profile = () => {
             <CardHeader>
               <div className="flex items-center space-x-4">
                 <Avatar className="h-20 w-20">
-                  <AvatarImage src="/placeholder.svg" />
-                  <AvatarFallback className="text-2xl">PS</AvatarFallback>
+                  <AvatarImage src={(user as any)?.profile?.avatar || (user as any)?.avatar || "/placeholder.svg"} />
+                  <AvatarFallback className="text-2xl">{initials}</AvatarFallback>
                 </Avatar>
                 <div className="flex-1">
                   <div className="flex items-center space-x-3 mb-2">
-                    <h1 className="text-2xl font-bold">Priya Singh</h1>
-                    <Badge className="bg-primary text-primary-foreground">Athlete</Badge>
+                    <h1 className="text-2xl font-bold">{displayName}</h1>
+                    <Badge className="bg-primary text-primary-foreground">{roleLabel}</Badge>
                   </div>
                   <p className="text-muted-foreground mb-3">
-                    Sprint Specialist • Delhi, India • Level 7
+                    {/* Additional profile summary can be sourced from profile context later */}
+                    {user?.email}
                   </p>
                   <div className="flex space-x-2">
-                    <Badge variant="secondary">Track & Field</Badge>
-                    <Badge variant="secondary">100m Sprint</Badge>
-                    <Badge className="bg-success text-success-foreground">Rising Star</Badge>
+                    {/* Example tags; replace with real user profile tags when available */}
+                    <Badge variant="secondary">Profile</Badge>
+                    <Badge variant="secondary">{roleLabel}</Badge>
+                    <Badge className="bg-success text-success-foreground">Active</Badge>
                   </div>
                 </div>
                 <Button variant="outline">

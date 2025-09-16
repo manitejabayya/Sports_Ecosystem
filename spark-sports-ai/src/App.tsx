@@ -54,23 +54,9 @@ const theme = createTheme({
   },
 });
 
-// Create a wrapper component to filter out unsupported props
-const ThemeProvider = ({ children, ...props }: any) => {
-  // Filter out all data-* and aria-* props that aren't standard
-  const filteredProps = Object.keys(props).reduce((acc, key) => {
-    if (!key.startsWith('data-') && 
-        !key.startsWith('aria-') && 
-        !key.startsWith('data-lov-') &&
-        !key.startsWith('data-component-')) {
-      acc[key] = props[key];
-    }
-    return acc;
-  }, {} as Record<string, any>);
-
-  // Also filter out any remaining React internal props
-  const { key, ref, ...rest } = filteredProps;
-  
-  return <MuiThemeProvider theme={theme} {...rest}>{children}</MuiThemeProvider>;
+// Create a wrapper component that ensures only supported props are passed to MUI
+const ThemeProvider = ({ children }: any) => {
+  return <MuiThemeProvider theme={theme}>{children}</MuiThemeProvider>;
 };
 
 // Protected Route Component

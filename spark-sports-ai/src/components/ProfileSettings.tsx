@@ -6,8 +6,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { User, MapPin, Calendar, Target, Save } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 const ProfileSettings = () => {
+  const { user } = useAuth();
+  const fullName = user?.name || "";
+  const [derivedFirstName, ...rest] = fullName.split(" ");
+  const derivedLastName = rest.join(" ");
   const currentSports = ["Track & Field", "100m Sprint", "200m Sprint"];
   const availableSports = ["400m Sprint", "Long Jump", "High Jump", "Hurdles", "Javelin", "Shot Put"];
 
@@ -27,17 +32,17 @@ const ProfileSettings = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="firstName">First Name</Label>
-              <Input id="firstName" defaultValue="Priya" />
+              <Input id="firstName" defaultValue={derivedFirstName} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="lastName">Last Name</Label>
-              <Input id="lastName" defaultValue="Singh" />
+              <Input id="lastName" defaultValue={derivedLastName} />
             </div>
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="email">Email Address</Label>
-            <Input id="email" type="email" defaultValue="priya.singh@email.com" />
+            <Input id="email" type="email" defaultValue={user?.email || ""} />
           </div>
 
           <div className="space-y-2">

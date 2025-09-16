@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Menu, X, Target, BarChart3, Users, Home, Video, User, Award, Activity, Settings, ChevronDown, LogIn } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Link } from "react-router-dom";
 import {
   DropdownMenu,
@@ -16,45 +17,58 @@ const Navigation = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [lastScrollY, setLastScrollY] = useState(0);
   const [isVisible, setIsVisible] = useState(true);
-  const { isAuthenticated, logout } = useAuth();
+  const { isAuthenticated, logout, user } = useAuth();
 
-  const navItems = [
-    { name: 'Home', href: '/', icon: <Home className="h-4 w-4 mr-2" /> },
-    { 
-      name: 'Athlete', 
-      icon: <Activity className="h-4 w-4 mr-2" />,
-      items: [
-        { name: 'Dashboard', href: '/athlete-dashboard' },
-        { name: 'Performance', href: '/athlete-dashboard#performance' },
-        { name: 'Goals', href: '/athlete-dashboard#goals' },
-        { name: 'Training Logs', href: '/athlete-dashboard#training' },
-      ]
-    },
-    { 
-      name: 'Coach', 
-      icon: <Users className="h-4 w-4 mr-2" />,
-      items: [
-        { name: 'Dashboard', href: '/coach-dashboard' },
-        { name: 'Athlete List', href: '/coach-dashboard#athletes' },
-        { name: 'Analytics', href: '/coach-dashboard#analytics' },
-        { name: 'Training Plans', href: '/coach-dashboard#training-plans' },
-      ]
-    },
-    { 
+  const navItems = (() => {
+    const items: any[] = [
+      { name: 'Home', href: '/', icon: <Home className="h-4 w-4 mr-2" /> },
+    ];
+
+    // Show Athlete section unless the user is a coach
+    if (user?.role !== 'coach') {
+      items.push({ 
+        name: 'Athlete', 
+        icon: <Activity className="h-4 w-4 mr-2" />,
+        items: [
+          { name: 'Dashboard', href: '/athlete-dashboard' },
+          { name: 'Performance', href: '/athlete-dashboard#performance' },
+          { name: 'Goals', href: '/athlete-dashboard#goals' },
+          { name: 'Training Logs', href: '/athlete-dashboard#training' },
+        ]
+      });
+    }
+
+    // Show Coach section only if user is a coach (hide for athletes)
+    if (user?.role === 'coach') {
+      items.push({ 
+        name: 'Coach', 
+        icon: <Users className="h-4 w-4 mr-2" />,
+        items: [
+          { name: 'Dashboard', href: '/coach-dashboard' },
+          { name: 'Athlete List', href: '/coach-dashboard#athletes' },
+          { name: 'Analytics', href: '/coach-dashboard#analytics' },
+          { name: 'Training Plans', href: '/coach-dashboard#training-plans' },
+        ]
+      });
+    }
+
+    items.push({ 
       name: 'Analyze', 
       icon: <BarChart3 className="h-4 w-4 mr-2" />,
       items: [
         { name: 'Video Assessment', href: '/video-assessment' },
         { name: 'Performance Charts', href: '/athlete-dashboard#performance' },
       ]
-    },
-    { 
+    });
+
+    items.push({ 
       name: 'Community', 
       icon: <Users className="h-4 w-4 mr-2" />,
       href: '/community'
-    },
-    ...(isAuthenticated ? [
-      { 
+    });
+
+    if (isAuthenticated) {
+      items.push({ 
         name: 'Profile', 
         icon: <User className="h-4 w-4 mr-2" />,
         items: [
@@ -67,9 +81,11 @@ const Navigation = () => {
             isButton: true
           },
         ]
-      },
-    ] : []),
-  ];
+      });
+    }
+
+    return items;
+  })();
 
   const renderNavItem = (item: any, mobile = false) => {
     if (item.items) {
@@ -183,6 +199,15 @@ const Navigation = () => {
                   <LogIn className="h-4 w-4 mr-2" />
                   Login
                 </Button>
+              </Link>
+            )}
+            {isAuthenticated && (
+              <Link to="/profile" className="ml-2 flex items-center gap-2">
+                <Avatar className="h-8 w-8">
+                  <AvatarImage src={(user as any)?.profile?.avatar || (user as any)?.avatar || "/placeholder.svg"} />
+                  <AvatarFallback>{(user?.name || "U").slice(0,2).toUpperCase()}</AvatarFallback>
+                </Avatar>
+                <span className="text-sm font-medium hidden lg:inline">{user?.name}</span>
               </Link>
             )}
           </div>
