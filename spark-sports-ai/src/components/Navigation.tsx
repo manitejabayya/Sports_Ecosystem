@@ -201,15 +201,6 @@ const Navigation = () => {
                 </Button>
               </Link>
             )}
-            {isAuthenticated && (
-              <Link to="/profile" className="ml-2 flex items-center gap-2">
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src={(user as any)?.profile?.avatar || (user as any)?.avatar || "/placeholder.svg"} />
-                  <AvatarFallback>{(user?.name || "U").slice(0,2).toUpperCase()}</AvatarFallback>
-                </Avatar>
-                <span className="text-sm font-medium hidden lg:inline">{user?.name}</span>
-              </Link>
-            )}
           </div>
 
           <div className="md:hidden">

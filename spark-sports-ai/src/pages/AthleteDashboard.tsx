@@ -9,9 +9,31 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Target, TrendingUp, Award, Calendar, Activity, Zap } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useEffect, useState } from "react";
+import { usersAPI } from "@/lib/api";
 
 const AthleteDashboard = () => {
   const { user } = useAuth();
+  const [stats, setStats] = useState<any | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchDashboard = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const res = await usersAPI.getAthleteDashboard();
+        const data = (res as any).data?.data || (res as any).data;
+        setStats(data?.stats || null);
+      } catch (e: any) {
+        setError(e?.response?.data?.message || 'Failed to load dashboard');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchDashboard();
+  }, []);
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
@@ -35,8 +57,8 @@ const AthleteDashboard = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-performance-excellent mb-2">92</div>
-              <Progress value={92} className="h-2" />
+              <div className="text-3xl font-bold text-performance-excellent mb-2">{stats?.fitnessScore ?? '--'}</div>
+              <Progress value={Number(stats?.fitnessScore) || 0} className="h-2" />
             </CardContent>
           </Card>
 
@@ -48,8 +70,8 @@ const AthleteDashboard = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-primary mb-2">7/10</div>
-              <Progress value={70} className="h-2" />
+              <div className="text-3xl font-bold text-primary mb-2">{stats ? `${stats.activeGoals}/${stats.totalGoals}` : '—'}</div>
+              <Progress value={stats && stats.totalGoals ? Math.round((stats.activeGoals / stats.totalGoals) * 100) : 0} className="h-2" />
             </CardContent>
           </Card>
 
@@ -61,7 +83,7 @@ const AthleteDashboard = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-success mb-2">23</div>
+              <div className="text-3xl font-bold text-success mb-2">{stats?.totalBadges ?? '--'}</div>
               <p className="text-sm text-muted-foreground">Badges earned</p>
             </CardContent>
           </Card>
@@ -74,8 +96,8 @@ const AthleteDashboard = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-secondary mb-2">45</div>
-              <p className="text-sm text-muted-foreground">This month</p>
+              <div className="text-3xl font-bold text-secondary mb-2">{stats?.trainingDays ?? '--'}</div>
+              <p className="text-sm text-muted-foreground">Total training days</p>
             </CardContent>
           </Card>
         </div>

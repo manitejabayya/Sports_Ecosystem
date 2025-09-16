@@ -8,9 +8,31 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Users, BarChart3, AlertTriangle, Calendar, TrendingUp, Shield } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useEffect, useState } from "react";
+import { usersAPI } from "@/lib/api";
 
 const CoachDashboard = () => {
   const { user } = useAuth();
+  const [stats, setStats] = useState<any | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchDashboard = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const res = await usersAPI.getCoachDashboard();
+        const data = (res as any).data?.data || (res as any).data;
+        setStats(data?.stats || null);
+      } catch (e: any) {
+        setError(e?.response?.data?.message || 'Failed to load dashboard');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchDashboard();
+  }, []);
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
@@ -34,10 +56,9 @@ const CoachDashboard = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-secondary mb-2">24</div>
+              <div className="text-3xl font-bold text-secondary mb-2">{stats?.totalAthletes ?? '--'}</div>
               <div className="flex space-x-2">
-                <Badge className="bg-performance-excellent text-performance-excellent-foreground">18 Active</Badge>
-                <Badge variant="secondary">6 Inactive</Badge>
+                <Badge className="bg-performance-excellent text-performance-excellent-foreground">{stats?.activeAthletes ?? 0} Active</Badge>
               </div>
             </CardContent>
           </Card>
@@ -50,8 +71,8 @@ const CoachDashboard = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-success mb-2">87%</div>
-              <p className="text-sm text-muted-foreground">+12% from last month</p>
+              <div className="text-3xl font-bold text-success mb-2">{stats?.rating ? `${stats.rating}%` : '--'}</div>
+              <p className="text-sm text-muted-foreground">Experience: {stats?.experience ?? '--'} yrs</p>
             </CardContent>
           </Card>
 

@@ -76,6 +76,10 @@ export const usersAPI = {
       },
     });
   },
+
+  // Dashboards
+  getAthleteDashboard: () => api.get('/users/athlete-dashboard'),
+  getCoachDashboard: () => api.get('/users/coach-dashboard'),
 };
 
 // Video Assessment API
