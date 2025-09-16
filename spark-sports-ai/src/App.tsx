@@ -19,10 +19,17 @@ import Profile from "./pages/Profile";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import { LoadingSpinner } from "./components/ui/LoadingSpinner";
+import { useEffect } from 'react';
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
-// Create a theme instance
 // Create a theme instance with custom properties
 const theme = createTheme({
   palette: {
@@ -59,13 +66,48 @@ const ThemeProvider = ({ children }: any) => {
   return <MuiThemeProvider theme={theme}>{children}</MuiThemeProvider>;
 };
 
+// Auth Check Component - Handles initial auth state check
+const AuthCheck = ({ children }: { children: React.ReactNode }) => {
+  const { isAuthenticated, loading, loadUser } = useAuth();
+  const location = useLocation();
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (token && !isAuthenticated) {
+          await loadUser();
+        }
+      } catch (error) {
+        console.error('Auth check failed:', error);
+      }
+    };
+
+    checkAuth();
+  }, [isAuthenticated, loadUser]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <LoadingSpinner />
+      </div>
+    );
+  }
+
+  return <>{children}</>;
+};
+
 // Protected Route Component
 const ProtectedRoute = ({ children, requiredRole }: { children: React.ReactNode, requiredRole?: 'athlete' | 'coach' | 'scout' }) => {
-  const { isAuthenticated, loading, user } = useAuth();
+  const { isAuthenticated, user, loading } = useAuth();
   const location = useLocation();
 
   if (loading) {
-    return <LoadingSpinner />;
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <LoadingSpinner />
+      </div>
+    );
   }
 
   if (!isAuthenticated) {
@@ -73,11 +115,11 @@ const ProtectedRoute = ({ children, requiredRole }: { children: React.ReactNode,
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // Check if user has the required role
+  // If role is required, check if user has the required role
   if (requiredRole && user?.role !== requiredRole) {
-    // Redirect to appropriate dashboard based on user role
+    // Redirect to dashboard based on user role
     const redirectTo = user?.role === 'athlete' ? '/athlete-dashboard' : '/coach-dashboard';
-    return <Navigate to={redirectTo} replace />;
+    return <Navigate to={redirectTo} state={{ from: location }} replace />;
   }
 
   return <>{children}</>;
@@ -87,66 +129,68 @@ const ProtectedRoute = ({ children, requiredRole }: { children: React.ReactNode,
 const PublicRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, loading } = useAuth();
   const location = useLocation();
-  const from = (location.state as any)?.from?.pathname || '/';
 
   if (loading) {
-    return <LoadingSpinner />;
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <LoadingSpinner />
+      </div>
+    );
   }
 
   if (isAuthenticated) {
-    return <Navigate to={from} replace />;
+    // Redirect to dashboard if already authenticated
+    const from = location.state?.from?.pathname || 
+                (location.pathname === '/login' || location.pathname === '/register' ? 
+                 '/dashboard' : location.pathname);
+    return <Navigate to={from} state={{ from: location }} replace />;
   }
 
   return <>{children}</>;
 };
 
-function AppRoutes() {
+const AppRoutes = () => {
   return (
-    <Routes>
-      <Route path="/" element={<Index />} />
-      
-      {/* Public Routes */}
-      <Route path="/login" element={
-        <PublicRoute>
-          <Login />
-        </PublicRoute>
-      } />
-      
-      <Route path="/register" element={
-        <PublicRoute>
-          <Register />
-        </PublicRoute>
-      } />
-      
-      {/* Protected Routes */}
-      <Route
-        element={
-          <ProtectedRoute>
-            <Outlet />
-          </ProtectedRoute>
-        }
-      >
+    <AuthCheck>
+      <Routes>
+        {/* Public Routes */}
+        <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
+        <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
+        <Route path="/" element={<Index />} />
+
+        {/* Protected Routes */}
         <Route path="/athlete-dashboard" element={
           <ProtectedRoute requiredRole="athlete">
             <AthleteDashboard />
           </ProtectedRoute>
         } />
-        
         <Route path="/coach-dashboard" element={
           <ProtectedRoute requiredRole="coach">
             <CoachDashboard />
           </ProtectedRoute>
         } />
-        
-        <Route path="/video-assessment" element={<VideoAssessment />} />
-        <Route path="/community" element={<Community />} />
-        <Route path="/profile" element={<Profile />} />
-      </Route>
-      
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+        <Route path="/community" element={
+          <ProtectedRoute>
+            <Community />
+          </ProtectedRoute>
+        } />
+        <Route path="/profile" element={
+          <ProtectedRoute>
+            <Profile />
+          </ProtectedRoute>
+        } />
+        <Route path="/video-assessment" element={
+          <ProtectedRoute>
+            <VideoAssessment />
+          </ProtectedRoute>
+        } />
+
+        {/* 404 Route */}
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </AuthCheck>
   );
-}
+};
 
 function App() {
   return (

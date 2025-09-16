@@ -60,32 +60,62 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // Load user data
   const loadUser = useCallback(async () => {
     try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+      
       const response = await authAPI.getProfile();
       // Backend returns { success, data: user }
       const apiUser = (response as any).data?.data || (response as any).data;
+      
+      if (!apiUser) {
+        throw new Error('Invalid user data received');
+      }
+      
       setUser(apiUser);
       setIsAuthenticated(true);
+      return apiUser;
     } catch (err) {
       console.error('Error loading user', err);
+      // If we get a 401, clear the token and redirect to login
+      if ((err as any)?.response?.status === 401) {
+        localStorage.removeItem('token');
+        setIsAuthenticated(false);
+        setUser(null);
+        navigate('/login');
+      }
       throw err;
     }
-  }, []);
+  }, [navigate]);
 
   // Login user
   const login = async (email: string, password: string) => {
     try {
       setLoading(true);
       setError(null);
+      
+      // Clear any existing token
+      localStorage.removeItem('token');
+      
       const response = await authAPI.login(email, password);
       // Backend returns { success, token, data: { ...user } }
       const token = (response as any).data?.token;
       const apiUser = (response as any).data?.data;
       
-      if (token) {
-        localStorage.setItem('token', token);
+      if (!token) {
+        throw new Error('No authentication token received');
       }
-      setUser(apiUser);
-      setIsAuthenticated(true);
+      
+      // Store the token
+      localStorage.setItem('token', token);
+      
+      // Set the default auth header
+      const api = require('@/lib/api').default;
+      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      
+      // Load the user profile to ensure the token is valid
+      const userProfile = await loadUser();
       
       // Show success message
       toast({
@@ -95,7 +125,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       // Redirect to the intended URL or based on user role
       const from = location.state?.from?.pathname || 
-                  (apiUser?.role === 'athlete' ? '/athlete-dashboard' : '/coach-dashboard');
+                  (userProfile?.role === 'athlete' ? '/athlete-dashboard' : '/coach-dashboard');
       navigate(from, { replace: true });
     } catch (err: any) {
       const errorMessage = err.response?.data?.message || 'Login failed. Please check your credentials.';

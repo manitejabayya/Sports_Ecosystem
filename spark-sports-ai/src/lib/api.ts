@@ -11,9 +11,24 @@ const api = axios.create({
   withCredentials: true,
 });
 
+// Flag to prevent multiple token refresh requests
+let isRefreshing = false;
+let failedQueue: any[] = [];
+
+const processQueue = (error: any, token: string | null = null) => {
+  failedQueue.forEach(prom => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
 // Request interceptor to add auth token to requests
 api.interceptors.request.use(
-  (config) => {
+  async (config) => {
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -28,13 +43,60 @@ api.interceptors.request.use(
 // Response interceptor to handle common errors
 api.interceptors.response.use(
   (response: AxiosResponse) => response,
-  (error: AxiosError) => {
-    if (error.response?.status === 401) {
-      // Handle unauthorized access
-      localStorage.removeItem('token');
-      window.location.href = '/login';
+  async (error: AxiosError) => {
+    const originalRequest = error.config as any;
+    
+    // If error is not a 401 or it's a login/refresh request, reject
+    if (error.response?.status !== 401 || originalRequest._retry || 
+        originalRequest.url?.includes('/auth/')) {
+      return Promise.reject(error);
     }
-    return Promise.reject(error);
+
+    // If we're already refreshing the token, queue the request
+    if (isRefreshing) {
+      return new Promise((resolve, reject) => {
+        failedQueue.push({ resolve, reject });
+      })
+      .then((token) => {
+        originalRequest.headers.Authorization = `Bearer ${token}`;
+        return api(originalRequest);
+      })
+      .catch((err) => {
+        return Promise.reject(err);
+      });
+    }
+
+    // Set the retry flag and start refresh process
+    originalRequest._retry = true;
+    isRefreshing = true;
+
+    try {
+      // Try to refresh the token
+      const response = await axios.post(`${API_BASE_URL}/auth/refresh-token`, {}, { withCredentials: true });
+      const { token } = response.data;
+      
+      // Update the token in localStorage
+      localStorage.setItem('token', token);
+      
+      // Update the Authorization header
+      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      originalRequest.headers.Authorization = `Bearer ${token}`;
+      
+      // Process any queued requests
+      processQueue(null, token);
+      
+      // Retry the original request
+      return api(originalRequest);
+    } catch (refreshError) {
+      // If refresh fails, clear the token and redirect to login
+      localStorage.removeItem('token');
+      delete api.defaults.headers.common['Authorization'];
+      processQueue(refreshError, null);
+      window.location.href = '/login';
+      return Promise.reject(refreshError);
+    } finally {
+      isRefreshing = false;
+    }
   }
 );
 
