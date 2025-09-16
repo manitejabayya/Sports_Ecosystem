@@ -22,7 +22,7 @@ type AuthContextType = {
     email: string,
     password: string,
     role: 'athlete' | 'coach' | 'scout',
-    profile?: any
+    profileData?: any
   ) => Promise<void>;
   logout: () => void;
   loadUser: () => Promise<void>;
@@ -113,37 +113,38 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     email: string,
     password: string,
     role: 'athlete' | 'coach' | 'scout',
-    profile: any = {}
+    profileData: any = {}
   ) => {
     try {
       setLoading(true);
       setError(null);
       
-      // Prepare user data for registration
-      const userData = {
+      // Combine all registration data
+      const registrationData = {
         name,
         email,
         password,
         role,
-        profile
+        ...profileData // Spread all profile data into the main object
       };
-      const response = await authAPI.register(userData);
+      
+      const response = await authAPI.register(registrationData);
       const { token, user } = response.data;
       
       localStorage.setItem('token', token);
       setUser(user);
       setIsAuthenticated(true);
       
-      // Show success message
       toast({
         title: 'Registration successful!',
         description: 'Your account has been created successfully.',
       });
       
-      // Redirect based on user role
-      const redirectPath = user.role === 'athlete' ? '/athlete-dashboard' : '/coach-dashboard';
+      // Redirect based on role
+      const redirectPath = role === 'athlete' ? '/athlete-dashboard' : '/coach-dashboard';
       navigate(redirectPath, { replace: true });
     } catch (err: any) {
+      console.error('Registration error:', err);
       const errorMessage = err.response?.data?.message || 'Registration failed. Please try again.';
       setError(errorMessage);
       
@@ -152,7 +153,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         title: 'Registration failed',
         description: errorMessage,
       });
-      
       throw err;
     } finally {
       setLoading(false);

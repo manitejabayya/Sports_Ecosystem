@@ -122,16 +122,23 @@ const Register = () => {
     "Delhi", "Jammu and Kashmir", "Ladakh", "Lakshadweep", "Puducherry"
   ];
 
-  const handleInputChange = (e) => {
-    const { name, value, type, checked } = e.target;
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value, type } = e.target;
+    const isCheckbox = type === 'checkbox';
+    const checked = isCheckbox ? (e.target as HTMLInputElement).checked : undefined;
+    
     setFormData(prev => ({
       ...prev,
-      [name]: type === "checkbox" ? checked : value
+      [name]: isCheckbox ? checked : value
     }));
     
-    // Clear related errors
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: "" }));
+    // Clear related errors when the field is being edited
+    if (errors[name as keyof typeof errors]) {
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[name as keyof typeof errors];
+        return newErrors;
+      });
     }
   };
 
@@ -148,71 +155,163 @@ const Register = () => {
     if (step === 1) {
       if (!formData.firstName.trim()) newErrors.firstName = 'First name is required';
       if (!formData.lastName.trim()) newErrors.lastName = 'Last name is required';
+      
+      // Email validation
       if (!formData.email.trim()) {
         newErrors.email = 'Email is required';
-      } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
         newErrors.email = 'Email is invalid';
       }
+      
+      // Phone validation
       if (!formData.phone.trim()) {
         newErrors.phone = 'Phone number is required';
       } else if (!/^\d{10}$/.test(formData.phone)) {
         newErrors.phone = 'Phone number must be 10 digits';
       }
-      if (!formData.role) newErrors.role = 'Please select a role';
-      if (formData.password.length < 6) newErrors.password = "Password must be at least 6 characters";
+      
+      // Role validation
+      if (!formData.role) {
+        newErrors.role = 'Please select a role';
+      }
+      
+      // Password validation
+      if (formData.password.length < 6) {
+        newErrors.password = 'Password must be at least 6 characters';
+      } else if (!/[A-Z]/.test(formData.password)) {
+        newErrors.password = 'Password must contain at least one uppercase letter';
+      } else if (!/[0-9]/.test(formData.password)) {
+        newErrors.password = 'Password must contain at least one number';
+      }
+      
+      // Confirm password validation
       if (formData.password !== formData.confirmPassword) {
-        newErrors.confirmPassword = "Passwords do not match";
+        newErrors.confirmPassword = 'Passwords do not match';
       }
     }
     
     if (step === 2) {
-      if (!formData.dateOfBirth) newErrors.dateOfBirth = 'Date of birth is required';
+      // Profile validation
+      const today = new Date();
+      const birthDate = new Date(formData.dateOfBirth);
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+      
+      if (!formData.dateOfBirth) {
+        newErrors.dateOfBirth = 'Date of birth is required';
+      } else if (age < 13) {
+        newErrors.dateOfBirth = 'You must be at least 13 years old';
+      } else if (age > 100) {
+        newErrors.dateOfBirth = 'Please enter a valid date of birth';
+      }
+      
       if (!formData.gender) newErrors.gender = 'Gender is required';
-      if (!formData.location) newErrors.location = 'Location is required';
+      if (!formData.location.trim()) newErrors.location = 'Location is required';
       if (!formData.state) newErrors.state = 'State is required';
-      if (!formData.district) newErrors.district = 'District is required';
+      if (!formData.district.trim()) newErrors.district = 'District is required';
     }
     
     if (step === 3) {
+      // Role-specific validation
       if (formData.role === 'athlete' && !formData.sport) {
         newErrors.sport = 'Sport is required for athletes';
       }
-      if (formData.role === 'coach' && !formData.experience) {
-        newErrors.experience = 'Experience is required for coaches';
+      
+      if (formData.role === 'coach') {
+        if (!formData.experience) {
+          newErrors.experience = 'Experience is required for coaches';
+        } else if (formData.bio && formData.bio.length < 50) {
+          newErrors.bio = 'Please provide a more detailed bio (at least 50 characters)';
+        }
       }
+      
+      // Terms and conditions validation
       if (!formData.termsAccepted) {
         newErrors.termsAccepted = 'You must accept the terms and conditions';
       }
+      
       if (!formData.privacyAccepted) {
         newErrors.privacyAccepted = 'You must accept the privacy policy';
       }
     }
 
-    setErrors(newErrors);
     return newErrors;
   };
 
   const handleNext = () => {
     const validationErrors = validateStep(currentStep);
+    setErrors(validationErrors);
+    
+    // Only proceed to next step if there are no validation errors
     if (Object.keys(validationErrors).length === 0) {
-      setCurrentStep(prev => prev + 1);
+      setCurrentStep(prev => {
+        // Ensure we don't go beyond the last step
+        return Math.min(prev + 1, 3);
+      });
+    } else {
+      // Scroll to the first error
+      const firstError = Object.keys(validationErrors)[0];
+      const element = document.getElementById(firstError);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
     }
   };
 
   const handlePrevious = () => {
-    setCurrentStep(prev => prev - 1);
+    setCurrentStep(prev => Math.max(prev - 1, 1)); // Ensure we don't go below step 1
+    // Clear errors when going back
+    setErrors({});
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
     // Validate all steps before submission
-    const validationErrors = validateStep(currentStep);
-    if (Object.keys(validationErrors).length > 0) {
-      setErrors(validationErrors);
-      return;
+    let hasErrors = false;
+    const allErrors: RegisterFormErrors = {};
+    
+    // Validate all steps
+    for (let step = 1; step <= 3; step++) {
+      const stepErrors = validateStep(step);
+      Object.assign(allErrors, stepErrors);
     }
-
-    if (currentStep < 4) {
-      setCurrentStep(prev => prev + 1);
+    
+    // Set all errors at once
+    setErrors(allErrors);
+    
+    // If there are any errors, don't submit
+    if (Object.keys(allErrors).length > 0) {
+      // Find the first step that has errors
+      const errorSteps = [];
+      if (allErrors.firstName || allErrors.lastName || allErrors.email || allErrors.phone || allErrors.role || allErrors.password || allErrors.confirmPassword) {
+        errorSteps.push(1);
+      }
+      if (allErrors.dateOfBirth || allErrors.gender || allErrors.location || allErrors.state || allErrors.district) {
+        errorSteps.push(2);
+      }
+      if (allErrors.sport || allErrors.experience || allErrors.termsAccepted || allErrors.privacyAccepted) {
+        errorSteps.push(3);
+      }
+      
+      // Go to the first step with errors
+      if (errorSteps.length > 0) {
+        setCurrentStep(Math.min(...errorSteps));
+        
+        // Scroll to the first error
+        const firstError = Object.keys(allErrors)[0];
+        const element = document.getElementById(firstError);
+        if (element) {
+          setTimeout(() => {
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }, 100);
+        }
+      }
+      
       return;
     }
 
@@ -237,33 +336,32 @@ const Register = () => {
     setIsLoading(true);
 
     try {
-      // Prepare the data for registration
+      // Prepare the data for registration in the format expected by the backend
       const userData = {
         name: `${formData.firstName} ${formData.lastName}`.trim(),
         email: formData.email,
         phone: formData.phone,
         password: formData.password,
-        role: formData.role,
-        profile: {
-          dateOfBirth: formData.dateOfBirth,
-          gender: formData.gender,
-          location: formData.location,
-          state: formData.state,
-          district: formData.district,
-          sport: formData.sport,
-          specialization: formData.specialization,
-          experience: formData.experience,
-          bio: formData.bio,
-        },
+        role: formData.role as 'athlete' | 'coach' | 'scout',
+        // Include profile data directly in the user object
+        dateOfBirth: formData.dateOfBirth,
+        gender: formData.gender,
+        location: formData.location,
+        state: formData.state,
+        district: formData.district,
+        sport: formData.sport,
+        specialization: formData.specialization,
+        experience: formData.experience,
+        bio: formData.bio,
       };
 
-      // Call the register function from AuthContext with the correct number of arguments
+      // Call the register function from AuthContext
       await register(
         userData.name,
         userData.email,
         userData.password,
-        userData.role as 'athlete' | 'coach' | 'scout',
-        userData.profile
+        userData.role,
+        userData // Send all user data including profile fields
       );
 
       toast({
